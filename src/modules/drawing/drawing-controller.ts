@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { SketchService } from "./sketch-service";
+import { DrawingService } from "./drawing-service";
+import type { Drawing } from "./drawing";
 
 const idParamSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -8,33 +9,37 @@ const idParamSchema = z.object({
 
 const createBodySchema = z.object({
   mediaId: z.string().trim().min(1),
-  title: z.string().trim().max(200),
+  sketchId: z.string().trim().min(1),
+  title: z.string().trim().max(200).optional(),
   description: z.string().trim().max(2000).optional(),
-  summary: z.string().trim().max(500),
 });
 
 const updateBodySchema = z.object({
   mediaId: z.string().trim().min(1).optional(),
+  sketchId: z.string().trim().min(1).optional(),
   title: z.string().trim().max(200).optional(),
   description: z.string().trim().max(2000).optional(),
-  summary: z.string().trim().max(500).optional(),
 });
 
-export class SketchController {
-  private readonly service: SketchService = new SketchService();
+const generateBodySchema = z.object({
+  sketchId: z.coerce.number().int().positive(),
+  prompt: z.string().trim().max(500).optional(),
+});
+
+export class DrawingController {
+  private readonly service: DrawingService = new DrawingService();
 
   constructor(app: FastifyInstance) {
-    this.service = new SketchService();
     this.registerRoutes(app);
   }
 
   private registerRoutes(app: FastifyInstance): void {
     app.get(
-      "/sketches",
+      "/drawings",
       {
         schema: {
-          tags: ["Sketches"],
-          summary: "Listar todos os sketches",
+          tags: ["Drawings"],
+          summary: "Listar drawings",
           response: {
             200: {
               type: "object",
@@ -46,11 +51,11 @@ export class SketchController {
                     properties: {
                       id: { type: "number" },
                       mediaId: { type: "string" },
+                      sketchId: { type: "string" },
                       title: { type: "string" },
                       description: { type: "string" },
-                      summary: { type: "string" },
                     },
-                    required: ["id", "mediaId", "title", "summary"],
+                    required: ["id", "mediaId", "sketchId"],
                   },
                 },
               },
@@ -66,11 +71,11 @@ export class SketchController {
     );
 
     app.get(
-      "/sketches/:id",
+      "/drawings/:id",
       {
         schema: {
-          tags: ["Sketches"],
-          summary: "Buscar sketch por id",
+          tags: ["Drawings"],
+          summary: "Buscar drawing por id",
           params: {
             type: "object",
             properties: { id: { type: "number" } },
@@ -85,11 +90,11 @@ export class SketchController {
                   properties: {
                     id: { type: "number" },
                     mediaId: { type: "string" },
+                    sketchId: { type: "string" },
                     title: { type: "string" },
                     description: { type: "string" },
-                    summary: { type: "string" },
                   },
-                  required: ["id", "mediaId", "title", "summary"],
+                  required: ["id", "mediaId", "sketchId"],
                 },
               },
               required: ["data"],
@@ -104,28 +109,26 @@ export class SketchController {
       },
       async (req: FastifyRequest, reply: FastifyReply) => {
         const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
-
-          const data = await this.service.getByIdOrThrow(id);
-
-          return reply.status(200).send({ data });
+        const data = await this.service.getByIdOrThrow(id);
+        return reply.status(200).send({ data });
       }
     );
 
     app.post(
-      "/sketches",
+      "/drawings",
       {
         schema: {
-          tags: ["Sketches"],
-          summary: "Criar um novo sketch",
+          tags: ["Drawings"],
+          summary: "Criar drawing",
           body: {
             type: "object",
             properties: {
               mediaId: { type: "string" },
+              sketchId: { type: "string" },
               title: { type: "string" },
               description: { type: "string" },
-              summary: { type: "string" },
             },
-            required: ["mediaId", "title", "summary"],
+            required: ["mediaId", "sketchId"],
           },
           response: {
             201: {
@@ -136,36 +139,36 @@ export class SketchController {
                   properties: {
                     id: { type: "number" },
                     mediaId: { type: "string" },
+                    sketchId: { type: "string" },
                     title: { type: "string" },
                     description: { type: "string" },
-                    summary: { type: "string" },
                   },
-                  required: ["id", "mediaId", "title", "summary"],
+                  required: ["id", "mediaId", "sketchId"],
                 },
               },
               required: ["data"],
-            },
-            400: {
-              type: "object",
-              properties: { error: { type: "string" } },
-              required: ["error"],
             },
           },
         },
       },
       async (req: FastifyRequest, reply: FastifyReply) => {
         const body = createBodySchema.parse((req.body ?? {}) as unknown);
-        const data = await this.service.create(body);
-        return reply.status(201).send({ data });
+        const created = await this.service.create({
+          mediaId: body.mediaId,
+          sketchId: body.sketchId,
+          title: body.title,
+          description: body.description,
+        });
+        return reply.status(201).send({ data: created });
       }
     );
 
     app.put(
-      "/sketches/:id",
+      "/drawings/:id",
       {
         schema: {
-          tags: ["Sketches"],
-          summary: "Atualizar um sketch",
+          tags: ["Drawings"],
+          summary: "Atualizar drawing",
           params: {
             type: "object",
             properties: { id: { type: "number" } },
@@ -175,9 +178,9 @@ export class SketchController {
             type: "object",
             properties: {
               mediaId: { type: "string" },
+              sketchId: { type: "string" },
               title: { type: "string" },
               description: { type: "string" },
-              summary: { type: "string" },
             },
           },
           response: {
@@ -189,19 +192,14 @@ export class SketchController {
                   properties: {
                     id: { type: "number" },
                     mediaId: { type: "string" },
+                    sketchId: { type: "string" },
                     title: { type: "string" },
                     description: { type: "string" },
-                    summary: { type: "string" },
                   },
-                  required: ["id", "mediaId", "title", "summary"],
+                  required: ["id", "mediaId", "sketchId"],
                 },
               },
               required: ["data"],
-            },
-            400: {
-              type: "object",
-              properties: { error: { type: "string" } },
-              required: ["error"],
             },
             404: {
               type: "object",
@@ -213,35 +211,78 @@ export class SketchController {
       },
       async (req: FastifyRequest, reply: FastifyReply) => {
         const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
-
         const body = updateBodySchema.parse((req.body ?? {}) as unknown);
+        const updated = await this.service.update(id, {
+          mediaId: body.mediaId,
+          sketchId: body.sketchId,
+          title: body.title,
+          description: body.description,
+        });
+        return reply.status(200).send({ data: updated });
+      }
+    );
 
-        const data = await this.service.update(id, body);
-
-        return reply.status(200).send({ data });
+    app.post(
+      "/drawings/generate",
+      {
+        schema: {
+          tags: ["Drawings"],
+          summary: "Gerar drawing a partir de sketch",
+          body: {
+            type: "object",
+            properties: {
+              sketchId: { type: "number" },
+              prompt: { type: "string" },
+            },
+            required: ["sketchId"],
+          },
+          response: {
+            201: {
+              type: "object",
+              properties: {
+                data: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number" },
+                    mediaId: { type: "string" },
+                    sketchId: { type: "string" },
+                    title: { type: "string" },
+                    description: { type: "string" },
+                  },
+                  required: ["id", "mediaId", "sketchId"],
+                },
+              },
+              required: ["data"],
+            },
+          },
+        },
+      },
+      async (req: FastifyRequest, reply: FastifyReply) => {
+        const body = generateBodySchema.parse((req.body ?? {}) as unknown);
+        const drawing = await this.service.generateFromSketch(body.sketchId, body.prompt);
+        return reply.status(201).send({ data: drawing });
       }
     );
 
     app.delete(
-      "/sketches/:id",
+      "/drawings/:id",
       {
         schema: {
-          tags: ["Sketches"],
-          summary: "Excluir um sketch",
+          tags: ["Drawings"],
+          summary: "Excluir drawing",
           params: {
             type: "object",
             properties: { id: { type: "number" } },
             required: ["id"],
           },
-          // No explicit 204 schema to avoid OpenAPI content issues
         },
       },
       async (req: FastifyRequest, reply: FastifyReply) => {
         const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
-          await this.service.delete(id);
-          return reply.status(204).send();
+        await this.service.delete(id);
+        return reply.status(204).send();
       }
     );
   }
-
 }
+

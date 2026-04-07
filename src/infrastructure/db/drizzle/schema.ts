@@ -12,9 +12,9 @@ export const images = pgTable("images", {
 export const sketches = pgTable("sketches", {
   id: serial("id").primaryKey(),
   mediaId: text("media_id").notNull(),
-  title: text("title"),
+  title: text("title").notNull(),
   description: text("description"),
-  summary: text("summary"),
+  summary: text("summary").notNull(),
 });
 
 export const drawings = pgTable("drawings", {
@@ -26,4 +26,3 @@ export const drawings = pgTable("drawings", {
   title: text("title"),
   description: text("description"),
 });
-

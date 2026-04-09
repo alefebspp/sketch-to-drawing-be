@@ -1,3 +1,4 @@
+import "dotenv/config";
 import fastify from "fastify";
 import { AppError } from "./errors";
 import { SketchController } from "./modules/sketch/sketch-controller";
@@ -40,7 +41,10 @@ app.register(swaggerUI, {
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const multipart = require("@fastify/multipart");
-  app.register(multipart);
+  app.register(multipart, {
+    // Anexa os campos do multipart em request.body para evitar erro de validação
+    attachFieldsToBody: true,
+  });
 } catch (_e) {
   app.log.warn("Multipart plugin not installed. File uploads may not work.");
 }
@@ -72,6 +76,8 @@ app.setErrorHandler((error, _request, reply) => {
   if (error instanceof AppError) {
     return reply.status(error.statusCode).send({ error: error.message });
   }
+
+  console.log("ERROR:", error);
 
   return reply.status(500).send({ error: "Internal Server Error" });
 });

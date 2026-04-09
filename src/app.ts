@@ -8,9 +8,7 @@ import { DrawingController } from "./modules/drawing/drawing-controller";
 import { createReadStream } from "fs";
 import { join, extname } from "path";
 
-const app = fastify({
-  logger: true,
-});
+const app = fastify();
 
 // Swagger / OpenAPI
 app.register(swagger, {
@@ -95,4 +93,3 @@ async function start() {
 start();
 
 export { app };
-

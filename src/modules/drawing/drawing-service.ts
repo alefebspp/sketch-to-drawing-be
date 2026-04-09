@@ -11,6 +11,14 @@ export class DrawingService {
   private readonly imageService: ImageService = new ImageService();
   private readonly generator = new OpenAIImageGenerator();
 
+  private async assertSketchExists(sketchId: string): Promise<void> {
+    const parsedId = Number(sketchId);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
+      throw new NotFoundError("Sketch not found");
+    }
+    await this.sketchService.getByIdOrThrow(parsedId);
+  }
+
   public async getAll(): Promise<Drawing[]> {
     return this.repo.findAll();
   }
@@ -24,6 +32,7 @@ export class DrawingService {
   }
 
   public async create(input: Omit<Drawing, "id">): Promise<Drawing> {
+    await this.assertSketchExists(input.sketchId);
     return this.repo.create(input);
   }
 
@@ -31,6 +40,9 @@ export class DrawingService {
     const exists = await this.repo.findById(id);
     if (!exists) {
       throw new NotFoundError("Drawing not found");
+    }
+    if (input.sketchId !== undefined) {
+      await this.assertSketchExists(input.sketchId);
     }
     return this.repo.update(id, input);
   }

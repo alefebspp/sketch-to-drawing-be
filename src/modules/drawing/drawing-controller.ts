@@ -8,9 +8,8 @@ const idParamSchema = z.object({
 });
 
 const createBodySchema = z.object({
-  mediaId: z.string().trim().min(1).optional(),
   sketchId: z.string().trim().min(1),
-  title: z.string().trim().max(200).optional(),
+  title: z.string().trim().max(200),
   description: z.string().trim().max(2000).optional(),
 });
 
@@ -123,12 +122,11 @@ export class DrawingController {
           body: {
             type: "object",
             properties: {
-              mediaId: { type: "string" },
               sketchId: { type: "string" },
               title: { type: "string" },
               description: { type: "string" },
             },
-            required: ["mediaId", "sketchId"],
+            required: ["sketchId", "title"],
           },
           response: {
             201: {
@@ -143,7 +141,7 @@ export class DrawingController {
                     title: { type: "string" },
                     description: { type: "string" },
                   },
-                  required: ["id", "mediaId", "sketchId"],
+                  required: ["id", "sketchId"],
                 },
               },
               required: ["data"],
@@ -154,7 +152,6 @@ export class DrawingController {
       async (req: FastifyRequest, reply: FastifyReply) => {
         const body = createBodySchema.parse((req.body ?? {}) as unknown);
         const created = await this.service.create({
-          mediaId: body.mediaId,
           sketchId: body.sketchId,
           title: body.title,
           description: body.description,
@@ -259,7 +256,10 @@ export class DrawingController {
       },
       async (req: FastifyRequest, reply: FastifyReply) => {
         const body = generateBodySchema.parse((req.body ?? {}) as unknown);
-        const drawing = await this.service.generateFromSketch(body.sketchId, body.prompt);
+        const drawing = await this.service.generateFromSketch(
+          body.sketchId,
+          body.prompt
+        );
         return reply.status(201).send({ data: drawing });
       }
     );
@@ -285,4 +285,3 @@ export class DrawingController {
     );
   }
 }
-

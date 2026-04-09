@@ -55,7 +55,12 @@ export class DrawingService {
     await this.repo.delete(id);
   }
 
-  public async generateFromSketch(sketchId: number, prompt?: string): Promise<Drawing> {
+  public async generateImageForDrawing(drawingId: number, prompt?: string): Promise<Drawing> {
+    const drawing = await this.getByIdOrThrow(drawingId);
+    const sketchId = Number(drawing.sketchId);
+    if (!Number.isInteger(sketchId) || sketchId <= 0) {
+      throw new NotFoundError("Sketch not found");
+    }
     const sketch = await this.sketchService.getByIdOrThrow(sketchId);
     const imageId = Number(sketch.mediaId);
     if (!Number.isInteger(imageId) || imageId <= 0) {
@@ -64,13 +69,12 @@ export class DrawingService {
     const baseImage = await this.imageService.getByIdOrThrow(imageId);
     const baseUrl = baseImage.url;
     const generatedBuffer = await this.generator.generateFromImage(baseUrl, prompt);
-    const generatedImage = await this.imageService.createFromUpload(generatedBuffer, "image/png", "drawing.png");
-    return this.repo.create({
-      mediaId: String(generatedImage.id),
-      sketchId: String(sketch.id),
-      title: undefined,
-      description: undefined,
-    });
+    const generatedImage = await this.imageService.createFromUpload(
+      generatedBuffer,
+      "image/png",
+      "drawing.png"
+    );
+    return this.repo.update(drawingId, { mediaId: String(generatedImage.id) });
   }
 }
 

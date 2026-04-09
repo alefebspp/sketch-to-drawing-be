@@ -20,12 +20,12 @@ Tarefas derivadas de `docs/research/drawing-validations-generate-openai.md`.
 
 ## 2. Rota e controller — geração amarrada ao drawing existente
 
-- [ ] Remover ou depreciar `POST /drawings/generate` com `sketchId` obrigatório no body.
-- [ ] Registrar **`POST /drawings/:id/generate`** com atenção à ordem das rotas no Fastify (evitar conflito com `GET /drawings/:id`; segmento `generate` costuma ser suficiente).
-- [ ] Schema de params: `id` positivo / formato alinhado ao restante da API.
-- [ ] Body: apenas `{ prompt?: string }` (Zod).
-- [ ] Resposta: **200** com o drawing atualizado (preferência do research; alinhar com o time se quiserem 201 por “sub-recurso criado”).
-- [ ] Atualizar especificação OpenAPI para a nova rota, parâmetros e corpo.
+- [x] Remover ou depreciar `POST /drawings/generate` com `sketchId` obrigatório no body.
+- [x] Registrar **`POST /drawings/:id/generate`** com atenção à ordem das rotas no Fastify (evitar conflito com `GET /drawings/:id`; segmento `generate` costuma ser suficiente).
+- [x] Schema de params: `id` positivo / formato alinhado ao restante da API.
+- [x] Body: apenas `{ prompt?: string }` (Zod).
+- [x] Resposta: **200** com o drawing atualizado (preferência do research; alinhar com o time se quiserem 201 por “sub-recurso criado”).
+- [x] Atualizar especificação OpenAPI para a nova rota, parâmetros e corpo.
 
 ## 3. Caso de uso de geração — atualizar drawing em vez de criar
 

@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { DrawingService } from "./drawing-service";
-import type { Drawing } from "./drawing";
 
 const idParamSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -20,8 +19,7 @@ const updateBodySchema = z.object({
   description: z.string().trim().max(2000).optional(),
 });
 
-const generateBodySchema = z.object({
-  sketchId: z.coerce.number().int().positive(),
+const generatePromptBodySchema = z.object({
   prompt: z.string().trim().max(500).optional(),
 });
 
@@ -220,21 +218,24 @@ export class DrawingController {
     );
 
     app.post(
-      "/drawings/generate",
+      "/drawings/:id/generate",
       {
         schema: {
           tags: ["Drawings"],
-          summary: "Gerar drawing a partir de sketch",
+          summary: "Gerar mídia para drawing existente",
+          params: {
+            type: "object",
+            properties: { id: { type: "number" } },
+            required: ["id"],
+          },
           body: {
             type: "object",
             properties: {
-              sketchId: { type: "number" },
               prompt: { type: "string" },
             },
-            required: ["sketchId"],
           },
           response: {
-            201: {
+            200: {
               type: "object",
               properties: {
                 data: {
@@ -251,16 +252,19 @@ export class DrawingController {
               },
               required: ["data"],
             },
+            404: {
+              type: "object",
+              properties: { error: { type: "string" } },
+              required: ["error"],
+            },
           },
         },
       },
       async (req: FastifyRequest, reply: FastifyReply) => {
-        const body = generateBodySchema.parse((req.body ?? {}) as unknown);
-        const drawing = await this.service.generateFromSketch(
-          body.sketchId,
-          body.prompt
-        );
-        return reply.status(201).send({ data: drawing });
+        const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
+        const body = generatePromptBodySchema.parse((req.body ?? {}) as unknown);
+        const drawing = await this.service.generateImageForDrawing(id, body.prompt);
+        return reply.status(200).send({ data: drawing });
       }
     );
 

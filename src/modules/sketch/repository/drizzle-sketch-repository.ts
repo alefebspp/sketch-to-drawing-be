@@ -6,7 +6,7 @@ import { db } from "../../../infrastructure/db/drizzle";
 
 function mapRowToSketch(row: {
   id: number;
-  mediaId: string;
+  mediaId: string | null;
   title: string;
   description: string | null;
   summary: string;
@@ -14,6 +14,7 @@ function mapRowToSketch(row: {
   return {
     ...row,
     description: row.description ?? undefined,
+    mediaId: row.mediaId ?? undefined,
   };
 }
 

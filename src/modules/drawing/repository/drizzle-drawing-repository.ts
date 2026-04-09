@@ -6,14 +6,14 @@ import { DrawingRepository } from "./drawing-repository";
 
 function mapRowToDrawing(row: {
   id: number;
-  mediaId: string;
+  mediaId: string | null;
   sketchId: string;
   title: string | null;
   description: string | null;
 }): Drawing {
   return {
     id: row.id,
-    mediaId: row.mediaId,
+    mediaId: row.mediaId ?? undefined,
     sketchId: row.sketchId,
     title: row.title ?? undefined,
     description: row.description ?? undefined,

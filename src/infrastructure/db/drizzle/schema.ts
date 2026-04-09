@@ -11,7 +11,7 @@ export const images = pgTable("images", {
 
 export const sketches = pgTable("sketches", {
   id: serial("id").primaryKey(),
-  mediaId: text("media_id").notNull(),
+  mediaId: text("media_id"),
   title: text("title").notNull(),
   description: text("description"),
   summary: text("summary").notNull(),
@@ -19,9 +19,7 @@ export const sketches = pgTable("sketches", {
 
 export const drawings = pgTable("drawings", {
   id: serial("id").primaryKey(),
-  mediaId: text("media_id").notNull(),
-  // Domain entity stores the sketch reference as a string (`sketchId`).
-  // So we model it as a plain text column (no FK).
+  mediaId: text("media_id"),
   sketchId: text("sketch_id").notNull(),
   title: text("title"),
   description: text("description"),

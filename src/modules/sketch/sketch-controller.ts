@@ -7,7 +7,7 @@ const idParamSchema = z.object({
 });
 
 const createBodySchema = z.object({
-  mediaId: z.string().trim().min(1),
+  mediaId: z.string().trim().min(1).optional(),
   title: z.string().trim().max(200),
   description: z.string().trim().max(2000).optional(),
   summary: z.string().trim().max(500),

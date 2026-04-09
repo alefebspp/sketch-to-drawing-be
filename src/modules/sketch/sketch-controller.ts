@@ -105,9 +105,9 @@ export class SketchController {
       async (req: FastifyRequest, reply: FastifyReply) => {
         const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
 
-          const data = await this.service.getByIdOrThrow(id);
+        const data = await this.service.getByIdOrThrow(id);
 
-          return reply.status(200).send({ data });
+        return reply.status(200).send({ data });
       }
     );
 
@@ -125,7 +125,7 @@ export class SketchController {
               description: { type: "string" },
               summary: { type: "string" },
             },
-            required: ["mediaId", "title", "summary"],
+            required: ["title", "summary"],
           },
           response: {
             201: {
@@ -140,7 +140,7 @@ export class SketchController {
                     description: { type: "string" },
                     summary: { type: "string" },
                   },
-                  required: ["id", "mediaId", "title", "summary"],
+                  required: ["id", "title", "summary"],
                 },
               },
               required: ["data"],
@@ -238,10 +238,9 @@ export class SketchController {
       },
       async (req: FastifyRequest, reply: FastifyReply) => {
         const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
-          await this.service.delete(id);
-          return reply.status(204).send();
+        await this.service.delete(id);
+        return reply.status(204).send();
       }
     );
   }
-
 }

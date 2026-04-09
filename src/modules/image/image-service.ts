@@ -1,7 +1,7 @@
 import { Image } from "./image";
 import { DrizzleImageRepository } from "./repository/drizzle-image-repository";
 import { LocalStorageGateway } from "../../infrastructure/storage/local-storage-gateway";
-import { NotFoundError } from "../../errors";
+import { BadRequestError, NotFoundError } from "../../errors";
 
 export class ImageService {
   private readonly repo: DrizzleImageRepository = new DrizzleImageRepository();
@@ -39,7 +39,7 @@ export class ImageService {
   private assertAllowedMime(mime: string): void {
     const allowed = ["image/png", "image/jpeg", "image/webp"];
     if (!allowed.includes(mime)) {
-      throw new NotFoundError("Unsupported media type");
+      throw new BadRequestError("Unsupported media type");
     }
   }
 }

@@ -1,12 +1,17 @@
 import type { Drawing } from "./drawing";
 import { DrizzleDrawingRepository } from "./repository/drizzle-drawing-repository";
-import { NotFoundError } from "../../errors";
+import { BadRequestError, NotFoundError } from "../../errors";
 import { SketchService } from "../sketch/sketch-service";
 import { ImageService } from "../image/image-service";
-import { OpenAIImageGenerator } from "../../infrastructure/ai/openai-image-generator";
+import {
+  DEFAULT_EDIT_PROMPT,
+  OpenAIImageGenerator,
+  sniffImageMime,
+} from "../../infrastructure/ai/openai-image-generator";
 
 export class DrawingService {
-  private readonly repo: DrizzleDrawingRepository = new DrizzleDrawingRepository();
+  private readonly repo: DrizzleDrawingRepository =
+    new DrizzleDrawingRepository();
   private readonly sketchService: SketchService = new SketchService();
   private readonly imageService: ImageService = new ImageService();
   private readonly generator = new OpenAIImageGenerator();
@@ -17,6 +22,28 @@ export class DrawingService {
       throw new NotFoundError("Sketch not found");
     }
     await this.sketchService.getByIdOrThrow(parsedId);
+  }
+
+  private composeGenerationPrompt(
+    summary?: string | null,
+    prompt?: string
+  ): string {
+    const summaryText = summary?.trim();
+    const promptText = prompt?.trim();
+
+    if (!summaryText && !promptText) {
+      return DEFAULT_EDIT_PROMPT;
+    }
+
+    const promptParts = [DEFAULT_EDIT_PROMPT];
+    if (summaryText) {
+      promptParts.push(`Sketch context: ${summaryText}`);
+    }
+    if (promptText) {
+      promptParts.push(`Additional instruction: ${promptText}`);
+    }
+
+    return promptParts.join("\n\n");
   }
 
   public async getAll(): Promise<Drawing[]> {
@@ -36,7 +63,10 @@ export class DrawingService {
     return this.repo.create(input);
   }
 
-  public async update(id: number, input: Partial<Omit<Drawing, "id">>): Promise<Drawing> {
+  public async update(
+    id: number,
+    input: Partial<Omit<Drawing, "id">>
+  ): Promise<Drawing> {
     const exists = await this.repo.findById(id);
     if (!exists) {
       throw new NotFoundError("Drawing not found");
@@ -55,26 +85,43 @@ export class DrawingService {
     await this.repo.delete(id);
   }
 
-  public async generateImageForDrawing(drawingId: number, prompt?: string): Promise<Drawing> {
+  /**
+   * Generates a new image from the sketch linked to this drawing and replaces `mediaId`.
+   * The previous image file (if any) remains in storage until a cleanup policy exists.
+   */
+  public async generateImageForDrawing(
+    drawingId: number,
+    prompt?: string
+  ): Promise<Drawing> {
     const drawing = await this.getByIdOrThrow(drawingId);
     const sketchId = Number(drawing.sketchId);
     if (!Number.isInteger(sketchId) || sketchId <= 0) {
-      throw new NotFoundError("Sketch not found");
+      throw new BadRequestError("Drawing has no valid sketch for generation");
     }
     const sketch = await this.sketchService.getByIdOrThrow(sketchId);
     const imageId = Number(sketch.mediaId);
     if (!Number.isInteger(imageId) || imageId <= 0) {
-      throw new NotFoundError("Sketch mediaId is not a valid Image id");
+      throw new BadRequestError("Sketch has no base image for generation");
     }
     const baseImage = await this.imageService.getByIdOrThrow(imageId);
+
     const baseUrl = baseImage.url;
-    const generatedBuffer = await this.generator.generateFromImage(baseUrl, prompt);
+    const effectivePrompt = this.composeGenerationPrompt(
+      sketch.summary,
+      prompt
+    );
+    const generatedBuffer = await this.generator.generateFromImage(
+      baseUrl,
+      effectivePrompt
+    );
+    const mime = sniffImageMime(generatedBuffer);
+    const extension =
+      mime === "image/jpeg" ? ".jpg" : mime === "image/webp" ? ".webp" : ".png";
     const generatedImage = await this.imageService.createFromUpload(
       generatedBuffer,
-      "image/png",
-      "drawing.png"
+      mime,
+      `drawing${extension}`
     );
     return this.repo.update(drawingId, { mediaId: String(generatedImage.id) });
   }
 }
-

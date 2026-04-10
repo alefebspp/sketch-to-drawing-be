@@ -5,16 +5,16 @@ import { SketchService } from "../sketch/sketch-service";
 import { ImageService } from "../image/image-service";
 import {
   DEFAULT_EDIT_PROMPT,
-  OpenAIImageGenerator,
   sniffImageMime,
 } from "../../infrastructure/ai/openai-image-generator";
+import { createImageGenerator } from "../../infrastructure/ai/image-generator-factory";
 
 export class DrawingService {
   private readonly repo: DrizzleDrawingRepository =
     new DrizzleDrawingRepository();
   private readonly sketchService: SketchService = new SketchService();
   private readonly imageService: ImageService = new ImageService();
-  private readonly generator = new OpenAIImageGenerator();
+  private readonly generator = createImageGenerator();
 
   private async assertSketchExists(sketchId: string): Promise<void> {
     const parsedId = Number(sketchId);
@@ -26,7 +26,7 @@ export class DrawingService {
 
   private composeGenerationPrompt(
     summary?: string | null,
-    prompt?: string
+    prompt?: string,
   ): string {
     const summaryText = summary?.trim();
     const promptText = prompt?.trim();
@@ -65,7 +65,7 @@ export class DrawingService {
 
   public async update(
     id: number,
-    input: Partial<Omit<Drawing, "id">>
+    input: Partial<Omit<Drawing, "id">>,
   ): Promise<Drawing> {
     const exists = await this.repo.findById(id);
     if (!exists) {
@@ -91,7 +91,7 @@ export class DrawingService {
    */
   public async generateImageForDrawing(
     drawingId: number,
-    prompt?: string
+    prompt?: string,
   ): Promise<Drawing> {
     const drawing = await this.getByIdOrThrow(drawingId);
     const sketchId = Number(drawing.sketchId);
@@ -108,11 +108,11 @@ export class DrawingService {
     const baseUrl = baseImage.url;
     const effectivePrompt = this.composeGenerationPrompt(
       sketch.summary,
-      prompt
+      prompt,
     );
     const generatedBuffer = await this.generator.generateFromImage(
       baseUrl,
-      effectivePrompt
+      effectivePrompt,
     );
     const mime = sniffImageMime(generatedBuffer);
     const extension =
@@ -120,7 +120,7 @@ export class DrawingService {
     const generatedImage = await this.imageService.createFromUpload(
       generatedBuffer,
       mime,
-      `drawing${extension}`
+      `drawing${extension}`,
     );
     return this.repo.update(drawingId, { mediaId: String(generatedImage.id) });
   }

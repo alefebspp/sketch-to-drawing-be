@@ -44,3 +44,31 @@ Para isso, precisa que seja gerada uma imagem do rascunho para servir de referê
 
 Será usada a estratégia de shared database - shared schema, uma vez que o projeto está em início. Caso realmente vire um mvp, cada tabela terá uma coluna nova chamada tenant_id.
 # sketch-to-drawing-be
+
+## Environment Variables
+
+Image generation provider is selected with `IMAGE_PROVIDER`:
+
+- `IMAGE_PROVIDER=openai` (default)
+- `IMAGE_PROVIDER=stability`
+
+### OpenAI provider
+
+- `OPENAI_API_KEY` (required when `IMAGE_PROVIDER=openai`)
+- `OPENAI_HTTP_TIMEOUT_MS` (default: `120000`)
+- `OPENAI_MAX_INPUT_IMAGE_BYTES` (default: `4194304`)
+- `OPENAI_IMAGE_MODEL` (default: `dall-e-2`)
+
+### Stability provider
+
+- `STABILITY_API_KEY` (required when `IMAGE_PROVIDER=stability`)
+- `STABILITY_HTTP_TIMEOUT_MS` (default: `120000`)
+- `STABILITY_MAX_INPUT_IMAGE_BYTES` (default: `4194304`)
+- `STABILITY_OUTPUT_FORMAT` (default: `png`, allowed: `png|jpeg|webp`)
+- `STABILITY_CONTROL_STRENGTH` (optional, positive number)
+
+## Rollout and rollback
+
+- Start with `IMAGE_PROVIDER=openai` in production.
+- Enable `IMAGE_PROVIDER=stability` in homologation and validate drawing generation flow.
+- Rollback is immediate by switching `IMAGE_PROVIDER` back to `openai` and restarting the service.

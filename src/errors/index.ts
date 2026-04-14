@@ -1,3 +1,5 @@
+import { HTTP_STATUS } from "../consts/http-status";
+
 export class AppError extends Error {
   public readonly statusCode: number;
 
@@ -13,21 +15,21 @@ export class AppError extends Error {
 
 export class BadRequestError extends AppError {
   constructor(message = "Bad Request") {
-    super(400, message);
+    super(HTTP_STATUS.BAD_REQUEST, message);
     this.name = "BadRequestError";
   }
 }
 
 export class ForbiddenError extends AppError {
   constructor(message = "Forbidden") {
-    super(403, message);
+    super(HTTP_STATUS.FORBIDDEN, message);
     this.name = "ForbiddenError";
   }
 }
 
 export class NotFoundError extends AppError {
   constructor(message = "Not Found") {
-    super(404, message);
+    super(HTTP_STATUS.NOT_FOUND, message);
     this.name = "NotFoundError";
   }
 }

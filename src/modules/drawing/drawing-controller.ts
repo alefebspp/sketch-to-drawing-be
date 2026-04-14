@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HTTP_STATUS } from "../../consts/http-status";
 import type { FastifyZodInstance } from "../../fastify-zod-instance";
 import { DrawingService } from "./drawing-service";
 
@@ -52,7 +53,7 @@ export class DrawingController {
       },
       async (_req, reply) => {
         const data = await this.service.getAll();
-        return reply.status(200).send({ data });
+        return reply.status(HTTP_STATUS.OK).send({ data });
       }
     );
 
@@ -71,7 +72,7 @@ export class DrawingController {
       async (req, reply) => {
         const { id } = req.params;
         const data = await this.service.getByIdOrThrow(id);
-        return reply.status(200).send({ data });
+        return reply.status(HTTP_STATUS.OK).send({ data });
       }
     );
 
@@ -91,7 +92,7 @@ export class DrawingController {
         const body = createBodySchema.parse(req.body);
 
         const created = await this.service.create(body);
-        return reply.status(201).send({ data: created });
+        return reply.status(HTTP_STATUS.CREATED).send({ data: created });
       }
     );
 
@@ -115,7 +116,7 @@ export class DrawingController {
 
         const updated = await this.service.update(id, body);
 
-        return reply.status(200).send({ data: updated });
+        return reply.status(HTTP_STATUS.OK).send({ data: updated });
       }
     );
 
@@ -138,7 +139,7 @@ export class DrawingController {
           id,
           req.body.prompt
         );
-        return reply.status(200).send({ data: drawing });
+        return reply.status(HTTP_STATUS.OK).send({ data: drawing });
       }
     );
 
@@ -154,7 +155,7 @@ export class DrawingController {
       async (req, reply) => {
         const { id } = req.params;
         await this.service.delete(id);
-        return reply.status(204).send();
+        return reply.status(HTTP_STATUS.NO_CONTENT).send();
       }
     );
   }

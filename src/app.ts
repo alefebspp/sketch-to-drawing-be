@@ -8,6 +8,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
+import { HTTP_STATUS } from "./consts/http-status";
 import { AppError } from "./errors";
 import { SketchController } from "./modules/sketch/sketch-controller";
 import swagger from "@fastify/swagger";
@@ -91,10 +92,10 @@ app.setErrorHandler((error, request, reply) => {
   }
 
   if (hasZodFastifySchemaValidationErrors(error)) {
-    return reply.code(400).send({
+    return reply.code(HTTP_STATUS.BAD_REQUEST).send({
       error: {
         message: "Request doesn't match the schema",
-        statusCode: 400,
+        statusCode: HTTP_STATUS.BAD_REQUEST,
       },
       details: {
         issues: error.message,
@@ -105,10 +106,10 @@ app.setErrorHandler((error, request, reply) => {
   }
 
   if (isResponseSerializationError(error)) {
-    return reply.code(500).send({
+    return reply.code(HTTP_STATUS.INTERNAL_SERVER_ERROR).send({
       error: {
         message: "Response doesn't match the schema",
-        statusCode: 500,
+        statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
       },
       details: {
         issues: error.cause.issues,
@@ -120,7 +121,9 @@ app.setErrorHandler((error, request, reply) => {
 
   console.log("ERROR:", error);
 
-  return reply.status(500).send({ error: "Internal Server Error" });
+  return reply
+    .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    .send({ error: "Internal Server Error" });
 });
 
 const PORT = Number(process.env.PORT ?? 3000);

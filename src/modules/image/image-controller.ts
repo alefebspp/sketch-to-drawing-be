@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HTTP_STATUS } from "../../consts/http-status";
 import type { FastifyZodInstance } from "../../fastify-zod-instance";
 import { ImageService } from "./image-service";
 
@@ -45,7 +46,7 @@ export class ImageController {
       },
       async (_req, reply) => {
         const data = await this.service.getAll();
-        return reply.status(200).send({ data });
+        return reply.status(HTTP_STATUS.OK).send({ data });
       }
     );
 
@@ -65,7 +66,7 @@ export class ImageController {
       async (req, reply) => {
         const { id } = req.params;
         const data = await this.service.getByIdOrThrow(id);
-        return reply.status(200).send({ data });
+        return reply.status(HTTP_STATUS.OK).send({ data });
       }
     );
 
@@ -97,7 +98,9 @@ export class ImageController {
         }
 
         if (!part || typeof part.toBuffer !== "function") {
-          return reply.status(400).send({ error: "file is required" });
+          return reply
+            .status(HTTP_STATUS.BAD_REQUEST)
+            .send({ error: "file is required" });
         }
 
         const fileBuffer = await part.toBuffer();
@@ -108,7 +111,7 @@ export class ImageController {
           mime,
           filename
         );
-        return reply.status(201).send({ data: image });
+        return reply.status(HTTP_STATUS.CREATED).send({ data: image });
       }
     );
 
@@ -124,7 +127,7 @@ export class ImageController {
       async (req, reply) => {
         const { id } = req.params;
         await this.service.delete(id);
-        return reply.status(204).send();
+        return reply.status(HTTP_STATUS.NO_CONTENT).send();
       }
     );
   }

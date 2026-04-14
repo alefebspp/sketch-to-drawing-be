@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HTTP_STATUS } from "../../consts/http-status";
 import type { FastifyZodInstance } from "../../fastify-zod-instance";
 import { SketchService } from "./sketch-service";
 
@@ -49,7 +50,7 @@ export class SketchController {
       },
       async (_req, reply) => {
         const data = await this.service.getAll();
-        return reply.status(200).send({ data });
+        return reply.status(HTTP_STATUS.OK).send({ data });
       }
     );
 
@@ -70,7 +71,7 @@ export class SketchController {
 
         const data = await this.service.getByIdOrThrow(id);
 
-        return reply.status(200).send({ data });
+        return reply.status(HTTP_STATUS.OK).send({ data });
       }
     );
 
@@ -89,7 +90,7 @@ export class SketchController {
       async (req, reply) => {
         const body = createBodySchema.parse(req.body);
         const data = await this.service.create(body);
-        return reply.status(201).send({ data });
+        return reply.status(HTTP_STATUS.CREATED).send({ data });
       }
     );
 
@@ -113,7 +114,7 @@ export class SketchController {
 
         const data = await this.service.update(id, body);
 
-        return reply.status(200).send({ data });
+        return reply.status(HTTP_STATUS.OK).send({ data });
       }
     );
 
@@ -129,7 +130,7 @@ export class SketchController {
       async (req, reply) => {
         const { id } = req.params;
         await this.service.delete(id);
-        return reply.status(204).send();
+        return reply.status(HTTP_STATUS.NO_CONTENT).send();
       }
     );
   }

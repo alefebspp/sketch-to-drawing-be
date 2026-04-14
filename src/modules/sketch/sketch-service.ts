@@ -1,6 +1,6 @@
 import { Sketch } from "./sketch";
 import { DrizzleSketchRepository } from "./repository/drizzle-sketch-repository";
-import {  NotFoundError } from "../../errors";
+import { NotFoundError } from "../../errors";
 import { DrizzleImageRepository } from "../image/repository/drizzle-image-repository";
 
 export class SketchService {
@@ -9,7 +9,7 @@ export class SketchService {
   private readonly imageRepo: DrizzleImageRepository =
     new DrizzleImageRepository();
 
-  private async assertMediaExistsIfProvided(mediaId?: string): Promise<void> {
+  private async assertMediaExistsIfProvided(mediaId?: number): Promise<void> {
     if (mediaId === undefined) return;
     const parsedId = Number(mediaId);
     if (!Number.isFinite(parsedId)) {
@@ -30,7 +30,7 @@ export class SketchService {
     if (!sketch) {
       throw new NotFoundError("Sketch not found");
     }
-    
+
     return sketch;
   }
 
@@ -43,7 +43,6 @@ export class SketchService {
     id: number,
     input: Partial<Omit<Sketch, "id">>
   ): Promise<Sketch> {
-
     const sketch = await this.repo.findById(id);
 
     if (!sketch) {
@@ -66,6 +65,4 @@ export class SketchService {
 
     await this.repo.delete(id);
   }
-
- 
 }

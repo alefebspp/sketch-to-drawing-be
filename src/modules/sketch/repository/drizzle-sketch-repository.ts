@@ -6,7 +6,7 @@ import { db } from "../../../infrastructure/db/drizzle";
 
 function mapRowToSketch(row: {
   id: number;
-  mediaId: string | null;
+  mediaId: number | null;
   title: string;
   description: string | null;
   summary: string;
@@ -54,7 +54,7 @@ export class DrizzleSketchRepository implements SketchRepository {
     data: Partial<Omit<Sketch, "id">>
   ): Promise<Sketch> {
     const updateValues: {
-      mediaId?: string;
+      mediaId?: number;
       title?: string;
       description?: string;
       summary?: string;

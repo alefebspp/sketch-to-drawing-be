@@ -1,7 +1,7 @@
 export interface Drawing {
   id: number;
-  mediaId?: string;
-  sketchId: string;
+  mediaId?: number;
+  sketchId: number;
   title?: string;
   description?: string;
 }

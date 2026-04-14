@@ -1,19 +1,37 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { ImageService } from "./image-service";
 import { z } from "zod";
+import type { FastifyZodInstance } from "../../fastify-zod-instance";
+import { ImageService } from "./image-service";
 
 const idParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+const imageEntitySchema = z.object({
+  id: z.number(),
+  filename: z.string(),
+  url: z.string(),
+});
+
+const errorResponseSchema = z.object({ error: z.string() });
+
+/** Multipart: objeto vazio ou com `file` (validação de arquivo obrigatório no handler). */
+const imageUploadBodySchema = z
+  .object({
+    file: z
+      .custom<unknown>(() => true)
+      .describe("Arquivo de imagem (campo 'file')")
+      .optional(),
+  })
+  .passthrough();
+
 export class ImageController {
   private readonly service: ImageService = new ImageService();
 
-  constructor(app: FastifyInstance) {
+  constructor(app: FastifyZodInstance) {
     this.registerRoutes(app);
   }
 
-  private registerRoutes(app: FastifyInstance): void {
+  private registerRoutes(app: FastifyZodInstance): void {
     app.get(
       "/images",
       {
@@ -21,24 +39,7 @@ export class ImageController {
           tags: ["Images"],
           summary: "Listar imagens",
           response: {
-            200: {
-              type: "object",
-              properties: {
-                data: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: { type: "number" },
-                      filename: { type: "string" },
-                      url: { type: "string" },
-                    },
-                    required: ["id", "filename", "url"],
-                  },
-                },
-              },
-              required: ["data"],
-            },
+            200: z.object({ data: z.array(imageEntitySchema) }),
           },
         },
       },
@@ -54,37 +55,15 @@ export class ImageController {
         schema: {
           tags: ["Images"],
           summary: "Buscar imagem por id",
-          params: {
-            type: "object",
-            properties: { id: { type: "number" } },
-            required: ["id"],
-          },
+          params: idParamSchema,
           response: {
-            200: {
-              type: "object",
-              properties: {
-                data: {
-                  type: "object",
-                  properties: {
-                    id: { type: "number" },
-                    filename: { type: "string" },
-                    url: { type: "string" },
-                  },
-                  required: ["id", "filename", "url"],
-                },
-              },
-              required: ["data"],
-            },
-            404: {
-              type: "object",
-              properties: { error: { type: "string" } },
-              required: ["error"],
-            },
+            200: z.object({ data: imageEntitySchema }),
+            404: errorResponseSchema,
           },
         },
       },
-      async (req: FastifyRequest, reply: FastifyReply) => {
-        const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
+      async (req, reply) => {
+        const { id } = req.params;
         const data = await this.service.getByIdOrThrow(id);
         return reply.status(200).send({ data });
       }
@@ -97,52 +76,14 @@ export class ImageController {
           consumes: ["multipart/form-data"],
           tags: ["Images"],
           summary: "Upload de imagem",
-          // Define o corpo como multipart para o Swagger/OpenAPI gerar o form corretamente
-          body: {
-            // Aceita tanto o formato do Swagger (string/binary) quanto o body
-            // já parseado pelo multipart (objeto), evitando erro de validação.
-            oneOf: [
-              {
-                type: "object",
-                properties: {
-                  file: {
-                    type: "string",
-                    format: "binary",
-                    description: "Arquivo de imagem (campo 'file')",
-                  },
-                },
-                required: ["file"],
-              },
-              {
-                type: "object",
-              },
-            ],
-          },
+          body: imageUploadBodySchema,
           response: {
-            201: {
-              type: "object",
-              properties: {
-                data: {
-                  type: "object",
-                  properties: {
-                    id: { type: "number" },
-                    filename: { type: "string" },
-                    url: { type: "string" },
-                  },
-                  required: ["id", "filename", "url"],
-                },
-              },
-              required: ["data"],
-            },
-            400: {
-              type: "object",
-              properties: { error: { type: "string" } },
-              required: ["error"],
-            },
+            201: z.object({ data: imageEntitySchema }),
+            400: errorResponseSchema,
           },
         },
       },
-      async (req: FastifyRequest, reply: FastifyReply) => {
+      async (req, reply) => {
         const anyReq: any = req as any;
 
         let part = anyReq.body?.file ?? (await anyReq.file?.());
@@ -177,15 +118,11 @@ export class ImageController {
         schema: {
           tags: ["Images"],
           summary: "Excluir uma imagem",
-          params: {
-            type: "object",
-            properties: { id: { type: "number" } },
-            required: ["id"],
-          },
+          params: idParamSchema,
         },
       },
-      async (req: FastifyRequest, reply: FastifyReply) => {
-        const { id } = idParamSchema.parse((req.params ?? {}) as unknown);
+      async (req, reply) => {
+        const { id } = req.params;
         await this.service.delete(id);
         return reply.status(204).send();
       }

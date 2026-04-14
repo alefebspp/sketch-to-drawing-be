@@ -6,8 +6,8 @@ import { DrawingRepository } from "./drawing-repository";
 
 function mapRowToDrawing(row: {
   id: number;
-  mediaId: string | null;
-  sketchId: string;
+  mediaId: number | null;
+  sketchId: number;
   title: string | null;
   description: string | null;
 }): Drawing {
@@ -22,7 +22,11 @@ function mapRowToDrawing(row: {
 
 export class DrizzleDrawingRepository implements DrawingRepository {
   public async findById(id: number): Promise<Drawing | null> {
-    const rows = await db.select().from(drawings).where(eq(drawings.id, id)).limit(1);
+    const rows = await db
+      .select()
+      .from(drawings)
+      .where(eq(drawings.id, id))
+      .limit(1);
     if (rows.length === 0) return null;
     return mapRowToDrawing(rows[0]);
   }
@@ -45,18 +49,26 @@ export class DrizzleDrawingRepository implements DrawingRepository {
     return mapRowToDrawing(rows[0]);
   }
 
-  public async update(id: number, data: Partial<Omit<Drawing, "id">>): Promise<Drawing> {
+  public async update(
+    id: number,
+    data: Partial<Omit<Drawing, "id">>
+  ): Promise<Drawing> {
     const values: {
-      mediaId?: string;
-      sketchId?: string;
+      mediaId?: number;
+      sketchId?: number;
       title?: string | null;
       description?: string | null;
     } = {};
     if (data.mediaId !== undefined) values.mediaId = data.mediaId;
     if (data.sketchId !== undefined) values.sketchId = data.sketchId;
     if (data.title !== undefined) values.title = data.title ?? null;
-    if (data.description !== undefined) values.description = data.description ?? null;
-    const rows = await db.update(drawings).set(values).where(eq(drawings.id, id)).returning();
+    if (data.description !== undefined)
+      values.description = data.description ?? null;
+    const rows = await db
+      .update(drawings)
+      .set(values)
+      .where(eq(drawings.id, id))
+      .returning();
     return mapRowToDrawing(rows[0]);
   }
 
@@ -64,4 +76,3 @@ export class DrizzleDrawingRepository implements DrawingRepository {
     await db.delete(drawings).where(eq(drawings.id, id));
   }
 }
-

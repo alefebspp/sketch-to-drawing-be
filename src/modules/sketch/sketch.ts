@@ -1,6 +1,6 @@
 export interface Sketch {
   id: number;
-  mediaId?: string;
+  mediaId?: number;
   title: string;
   description?: string;
   summary: string;

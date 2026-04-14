@@ -1,5 +1,13 @@
 import "dotenv/config";
 import fastify from "fastify";
+import {
+  hasZodFastifySchemaValidationErrors,
+  isResponseSerializationError,
+  jsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from "fastify-type-provider-zod";
 import { AppError } from "./errors";
 import { SketchController } from "./modules/sketch/sketch-controller";
 import swagger from "@fastify/swagger";
@@ -9,10 +17,12 @@ import { DrawingController } from "./modules/drawing/drawing-controller";
 import { createReadStream } from "fs";
 import { join, extname } from "path";
 
-const app = fastify();
+const server = fastify();
+server.setValidatorCompiler(validatorCompiler);
+server.setSerializerCompiler(serializerCompiler);
 
 // Swagger / OpenAPI
-app.register(swagger, {
+server.register(swagger, {
   mode: "dynamic",
   openapi: {
     info: {
@@ -32,8 +42,9 @@ app.register(swagger, {
       { name: "Drawings", description: "Operações de Drawing" },
     ],
   },
+  transform: jsonSchemaTransform,
 });
-app.register(swaggerUI, {
+server.register(swaggerUI, {
   routePrefix: "/docs",
 });
 
@@ -41,13 +52,15 @@ app.register(swaggerUI, {
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const multipart = require("@fastify/multipart");
-  app.register(multipart, {
+  server.register(multipart, {
     // Anexa os campos do multipart em request.body para evitar erro de validação
     attachFieldsToBody: true,
   });
 } catch (_e) {
-  app.log.warn("Multipart plugin not installed. File uploads may not work.");
+  server.log.warn("Multipart plugin not installed. File uploads may not work.");
 }
+
+const app = server.withTypeProvider<ZodTypeProvider>();
 
 app.after(() => {
   new SketchController(app);
@@ -72,9 +85,37 @@ app.get("/storage/:filename", async (req, reply) => {
   return reply.send(createReadStream(filePath));
 });
 
-app.setErrorHandler((error, _request, reply) => {
+app.setErrorHandler((error, request, reply) => {
   if (error instanceof AppError) {
     return reply.status(error.statusCode).send({ error: error.message });
+  }
+
+  if (hasZodFastifySchemaValidationErrors(error)) {
+    return reply.code(400).send({
+      error: {
+        message: "Request doesn't match the schema",
+        statusCode: 400,
+      },
+      details: {
+        issues: error.message,
+        method: request.method,
+        url: request.url,
+      },
+    });
+  }
+
+  if (isResponseSerializationError(error)) {
+    return reply.code(500).send({
+      error: {
+        message: "Response doesn't match the schema",
+        statusCode: 500,
+      },
+      details: {
+        issues: error.cause.issues,
+        method: error.method,
+        url: error.url,
+      },
+    });
   }
 
   console.log("ERROR:", error);

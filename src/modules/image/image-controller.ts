@@ -111,6 +111,7 @@ export class ImageController {
           mime,
           filename
         );
+
         return reply.status(HTTP_STATUS.CREATED).send({ data: image });
       }
     );

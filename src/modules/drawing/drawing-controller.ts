@@ -24,12 +24,15 @@ const generatePromptBodySchema = z.object({
   prompt: z.string().trim().max(500).optional(),
 });
 
+const drawingStatusSchema = z.enum(["processing", "success", "failed"]);
+
 const drawingEntitySchema = z.object({
   id: z.number(),
   mediaId: z.number().optional(),
   sketchId: z.number(),
   title: z.string().optional(),
   description: z.string().optional(),
+  status: drawingStatusSchema.nullable(),
 });
 
 export class DrawingController {
@@ -125,21 +128,22 @@ export class DrawingController {
       {
         schema: {
           tags: ["Drawings"],
-          summary: "Gerar mídia para drawing existente",
+          summary: "Enfileirar geração de mídia para drawing existente (assíncrono)",
           params: idParamSchema,
           body: generatePromptBodySchema,
           response: {
-            200: z.object({ data: drawingEntitySchema }),
+            202: z.object({ data: drawingEntitySchema }),
+            409: z.object({ error: z.string() }),
           },
         },
       },
       async (req, reply) => {
         const { id } = req.params;
-        const drawing = await this.service.generateImageForDrawing(
+        const drawing = await this.service.enqueueGenerateImageForDrawing(
           id,
           req.body.prompt
         );
-        return reply.status(HTTP_STATUS.OK).send({ data: drawing });
+        return reply.status(HTTP_STATUS.ACCEPTED).send({ data: drawing });
       }
     );
 

@@ -1,6 +1,7 @@
-import type { Drawing } from "./drawing";
+import type { Drawing, DrawingCreateInput } from "./drawing";
 import { DrizzleDrawingRepository } from "./repository/drizzle-drawing-repository";
-import { BadRequestError, NotFoundError } from "../../errors";
+import { BadRequestError, ConflictError, NotFoundError } from "../../errors";
+import { enqueueDrawingImageGeneration } from "../../infrastructure/queue/drawing-image-generation-queue";
 import { SketchService } from "../sketch/sketch-service";
 import { ImageService } from "../image/image-service";
 import {
@@ -8,6 +9,7 @@ import {
   sniffImageMime,
 } from "../../infrastructure/ai/openai-image-generator";
 import { createImageGenerator } from "../../infrastructure/ai/image-generator-factory";
+import { UnrecoverableError } from "bullmq";
 
 export class DrawingService {
   private readonly repo: DrizzleDrawingRepository =
@@ -58,7 +60,7 @@ export class DrawingService {
     return drawing;
   }
 
-  public async create(input: Omit<Drawing, "id">): Promise<Drawing> {
+  public async create(input: DrawingCreateInput): Promise<Drawing> {
     await this.assertSketchExists(input.sketchId);
     return this.repo.create(input);
   }
@@ -86,30 +88,94 @@ export class DrawingService {
   }
 
   /**
-   * Generates a new image from the sketch linked to this drawing and replaces `mediaId`.
-   * The previous image file (if any) remains in storage until a cleanup policy exists.
+   * Valida o drawing, define `status = processing`, enfileira geração assíncrona (BullMQ).
    */
-  public async generateImageForDrawing(
+  public async enqueueGenerateImageForDrawing(
     drawingId: number,
     prompt?: string
   ): Promise<Drawing> {
     const drawing = await this.getByIdOrThrow(drawingId);
+    if (drawing.status === "processing") {
+      throw new ConflictError(
+        "Drawing image generation is already in progress"
+      );
+    }
+
     const sketchId = Number(drawing.sketchId);
     if (!Number.isInteger(sketchId) || sketchId <= 0) {
       throw new BadRequestError("Drawing has no valid sketch for generation");
     }
+
     const sketch = await this.sketchService.getByIdOrThrow(sketchId);
     const imageId = Number(sketch.mediaId);
     if (!Number.isInteger(imageId) || imageId <= 0) {
       throw new BadRequestError("Sketch has no base image for generation");
     }
-    const baseImage = await this.imageService.getByIdOrThrow(imageId);
 
+    await this.imageService.getByIdOrThrow(imageId);
+
+    const previousStatus = drawing.status;
+    await this.repo.update(drawingId, { status: "processing" });
+    try {
+      await enqueueDrawingImageGeneration({ drawingId, prompt });
+    } catch (e) {
+      await this.repo.update(drawingId, { status: previousStatus });
+      throw e;
+    }
+    return this.getByIdOrThrow(drawingId);
+  }
+
+  /**
+   * Executado pelo worker BullMQ: gera imagem, atualiza `mediaId` e `status = success`.
+   * Erros recuperáveis são repetidos pela fila; falhas permanentes usam `UnrecoverableError`.
+   */
+  public async processImageGenerationJob(
+    drawingId: number,
+    prompt?: string
+  ): Promise<void> {
+    const drawing = await this.repo.findById(drawingId);
+
+    if (!drawing) {
+      throw new UnrecoverableError("Drawing not found");
+    }
+
+    const sketchId = Number(drawing.sketchId);
+    if (!Number.isInteger(sketchId) || sketchId <= 0) {
+      throw new UnrecoverableError(
+        "Drawing has no valid sketch for generation"
+      );
+    }
+
+    let sketch;
+    try {
+      sketch = await this.sketchService.getByIdOrThrow(sketchId);
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw new UnrecoverableError("Sketch not found");
+      }
+      throw e;
+    }
+    const imageId = Number(sketch.mediaId);
+    if (!Number.isInteger(imageId) || imageId <= 0) {
+      throw new UnrecoverableError("Sketch has no base image for generation");
+    }
+
+    let baseImage;
+    try {
+      baseImage = await this.imageService.getByIdOrThrow(imageId);
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw new UnrecoverableError("Base image not found");
+      }
+      throw e;
+    }
     const baseUrl = baseImage.url;
+
     const effectivePrompt = this.composeGenerationPrompt(
       sketch.summary,
       prompt
     );
+
     const generatedBuffer = await this.generator.generateFromImage(
       baseUrl,
       effectivePrompt
@@ -122,6 +188,9 @@ export class DrawingService {
       mime,
       `drawing${extension}`
     );
-    return this.repo.update(drawingId, { mediaId: generatedImage.id });
+    await this.repo.update(drawingId, {
+      mediaId: generatedImage.id,
+      status: "success",
+    });
   }
 }

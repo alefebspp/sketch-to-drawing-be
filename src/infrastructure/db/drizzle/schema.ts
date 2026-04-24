@@ -1,5 +1,17 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, integer, serial } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  serial,
+  pgEnum,
+} from "drizzle-orm/pg-core";
+
+export const drawingStatusEnum = pgEnum("drawing_status", [
+  "processing",
+  "success",
+  "failed",
+]);
 
 export const images = pgTable("images", {
   id: serial("id").primaryKey(),
@@ -23,6 +35,7 @@ export const drawings = pgTable("drawings", {
     .references(() => sketches.id),
   title: text("title"),
   description: text("description"),
+  status: drawingStatusEnum("status"),
 });
 export const imagesRelations = relations(images, ({ many }) => ({
   sketches: many(sketches),

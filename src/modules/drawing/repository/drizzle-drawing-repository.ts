@@ -1,7 +1,7 @@
 import { db } from "../../../infrastructure/db/drizzle";
 import { drawings } from "../../../infrastructure/db/drizzle/schema";
 import { eq } from "drizzle-orm";
-import type { Drawing } from "../drawing";
+import type { Drawing, DrawingCreateInput, DrawingStatus } from "../drawing";
 import { DrawingRepository } from "./drawing-repository";
 
 function mapRowToDrawing(row: {
@@ -10,6 +10,7 @@ function mapRowToDrawing(row: {
   sketchId: number;
   title: string | null;
   description: string | null;
+  status: DrawingStatus | null;
 }): Drawing {
   return {
     id: row.id,
@@ -17,6 +18,7 @@ function mapRowToDrawing(row: {
     sketchId: row.sketchId,
     title: row.title ?? undefined,
     description: row.description ?? undefined,
+    status: row.status,
   };
 }
 
@@ -36,7 +38,7 @@ export class DrizzleDrawingRepository implements DrawingRepository {
     return rows.map(mapRowToDrawing);
   }
 
-  public async create(data: Omit<Drawing, "id">): Promise<Drawing> {
+  public async create(data: DrawingCreateInput): Promise<Drawing> {
     const rows = await db
       .insert(drawings)
       .values({
@@ -44,6 +46,7 @@ export class DrizzleDrawingRepository implements DrawingRepository {
         sketchId: data.sketchId,
         title: data.title ?? null,
         description: data.description ?? null,
+        status: data.status ?? null,
       })
       .returning();
     return mapRowToDrawing(rows[0]);
@@ -58,12 +61,14 @@ export class DrizzleDrawingRepository implements DrawingRepository {
       sketchId?: number;
       title?: string | null;
       description?: string | null;
+      status?: DrawingStatus | null;
     } = {};
     if (data.mediaId !== undefined) values.mediaId = data.mediaId;
     if (data.sketchId !== undefined) values.sketchId = data.sketchId;
     if (data.title !== undefined) values.title = data.title ?? null;
     if (data.description !== undefined)
       values.description = data.description ?? null;
+    if (data.status !== undefined) values.status = data.status;
     const rows = await db
       .update(drawings)
       .set(values)

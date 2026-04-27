@@ -28,7 +28,7 @@ export class DrawingService {
 
   private composeGenerationPrompt(
     summary?: string | null,
-    prompt?: string
+    prompt?: string,
   ): string {
     const summaryText = summary?.trim();
     const promptText = prompt?.trim();
@@ -67,7 +67,7 @@ export class DrawingService {
 
   public async update(
     id: number,
-    input: Partial<Omit<Drawing, "id">>
+    input: Partial<Omit<Drawing, "id">>,
   ): Promise<Drawing> {
     const exists = await this.repo.findById(id);
     if (!exists) {
@@ -92,13 +92,17 @@ export class DrawingService {
    */
   public async enqueueGenerateImageForDrawing(
     drawingId: number,
-    prompt?: string
+    prompt?: string,
   ): Promise<Drawing> {
     const drawing = await this.getByIdOrThrow(drawingId);
     if (drawing.status === "processing") {
       throw new ConflictError(
-        "Drawing image generation is already in progress"
+        "Drawing image generation is already in progress",
       );
+    }
+
+    if (drawing.status === "success") {
+      throw new ConflictError("Drawing image generation is already done");
     }
 
     const sketchId = Number(drawing.sketchId);
@@ -131,7 +135,7 @@ export class DrawingService {
    */
   public async processImageGenerationJob(
     drawingId: number,
-    prompt?: string
+    prompt?: string,
   ): Promise<void> {
     const drawing = await this.repo.findById(drawingId);
 
@@ -139,10 +143,14 @@ export class DrawingService {
       throw new UnrecoverableError("Drawing not found");
     }
 
+    if (drawing.status === "success") {
+      throw new UnrecoverableError("Drawing image generation is already done");
+    }
+
     const sketchId = Number(drawing.sketchId);
     if (!Number.isInteger(sketchId) || sketchId <= 0) {
       throw new UnrecoverableError(
-        "Drawing has no valid sketch for generation"
+        "Drawing has no valid sketch for generation",
       );
     }
 
@@ -173,12 +181,12 @@ export class DrawingService {
 
     const effectivePrompt = this.composeGenerationPrompt(
       sketch.summary,
-      prompt
+      prompt,
     );
 
     const generatedBuffer = await this.generator.generateFromImage(
       baseUrl,
-      effectivePrompt
+      effectivePrompt,
     );
     const mime = sniffImageMime(generatedBuffer);
     const extension =
@@ -186,7 +194,7 @@ export class DrawingService {
     const generatedImage = await this.imageService.createFromUpload(
       generatedBuffer,
       mime,
-      `drawing${extension}`
+      `drawing${extension}`,
     );
     await this.repo.update(drawingId, {
       mediaId: generatedImage.id,

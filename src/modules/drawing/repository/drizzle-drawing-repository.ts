@@ -11,6 +11,8 @@ function mapRowToDrawing(row: {
   title: string | null;
   description: string | null;
   status: DrawingStatus | null;
+  lastError: string | null;
+  failedAt: Date | null;
 }): Drawing {
   return {
     id: row.id,
@@ -19,6 +21,8 @@ function mapRowToDrawing(row: {
     title: row.title ?? undefined,
     description: row.description ?? undefined,
     status: row.status,
+    lastError: row.lastError,
+    failedAt: row.failedAt,
   };
 }
 
@@ -62,6 +66,8 @@ export class DrizzleDrawingRepository implements DrawingRepository {
       title?: string | null;
       description?: string | null;
       status?: DrawingStatus | null;
+      lastError?: string | null;
+      failedAt?: Date | null;
     } = {};
     if (data.mediaId !== undefined) values.mediaId = data.mediaId;
     if (data.sketchId !== undefined) values.sketchId = data.sketchId;
@@ -69,6 +75,8 @@ export class DrizzleDrawingRepository implements DrawingRepository {
     if (data.description !== undefined)
       values.description = data.description ?? null;
     if (data.status !== undefined) values.status = data.status;
+    if (data.lastError !== undefined) values.lastError = data.lastError;
+    if (data.failedAt !== undefined) values.failedAt = data.failedAt;
     const rows = await db
       .update(drawings)
       .set(values)

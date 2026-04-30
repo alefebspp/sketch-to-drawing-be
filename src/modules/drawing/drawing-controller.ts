@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { HTTP_STATUS } from "../../consts/http-status";
 import type { FastifyZodInstance } from "../../fastify-zod-instance";
+import type { Drawing } from "./drawing";
 import { DrawingService } from "./drawing-service";
 
 const idParamSchema = z.object({
@@ -33,7 +34,22 @@ const drawingEntitySchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   status: drawingStatusSchema.nullable(),
+  lastError: z.string().nullable(),
+  failedAt: z.string().datetime({ offset: true }).nullable(),
 });
+
+function drawingToEntityResponse(d: Drawing) {
+  return {
+    id: d.id,
+    mediaId: d.mediaId,
+    sketchId: d.sketchId,
+    title: d.title,
+    description: d.description,
+    status: d.status,
+    lastError: d.lastError,
+    failedAt: d.failedAt ? d.failedAt.toISOString() : null,
+  };
+}
 
 export class DrawingController {
   private readonly service: DrawingService = new DrawingService();
@@ -55,8 +71,10 @@ export class DrawingController {
         },
       },
       async (_req, reply) => {
-        const data = await this.service.getAll();
-        return reply.status(HTTP_STATUS.OK).send({ data });
+        const rows = await this.service.getAll();
+        return reply
+          .status(HTTP_STATUS.OK)
+          .send({ data: rows.map(drawingToEntityResponse) });
       }
     );
 
@@ -75,7 +93,9 @@ export class DrawingController {
       async (req, reply) => {
         const { id } = req.params;
         const data = await this.service.getByIdOrThrow(id);
-        return reply.status(HTTP_STATUS.OK).send({ data });
+        return reply
+          .status(HTTP_STATUS.OK)
+          .send({ data: drawingToEntityResponse(data) });
       }
     );
 
@@ -95,7 +115,9 @@ export class DrawingController {
         const body = createBodySchema.parse(req.body);
 
         const created = await this.service.create(body);
-        return reply.status(HTTP_STATUS.CREATED).send({ data: created });
+        return reply
+          .status(HTTP_STATUS.CREATED)
+          .send({ data: drawingToEntityResponse(created) });
       }
     );
 
@@ -119,7 +141,9 @@ export class DrawingController {
 
         const updated = await this.service.update(id, body);
 
-        return reply.status(HTTP_STATUS.OK).send({ data: updated });
+        return reply
+          .status(HTTP_STATUS.OK)
+          .send({ data: drawingToEntityResponse(updated) });
       }
     );
 
@@ -143,7 +167,9 @@ export class DrawingController {
           id,
           req.body.prompt
         );
-        return reply.status(HTTP_STATUS.ACCEPTED).send({ data: drawing });
+        return reply
+          .status(HTTP_STATUS.ACCEPTED)
+          .send({ data: drawingToEntityResponse(drawing) });
       }
     );
 

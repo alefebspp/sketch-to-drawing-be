@@ -1,4 +1,5 @@
 import { UnrecoverableError, Worker } from "bullmq";
+import { formatDrawingImageJobErrorForPersistence } from "./drawing-image-job-error-text";
 import { createRedisConnection } from "./redis-connection";
 import {
   DRAWING_IMAGE_GENERATION_QUEUE_NAME,
@@ -21,11 +22,16 @@ export function createDrawingImageGenerationWorker(): Worker<DrawingImageGenerat
 
   worker.on("failed", async (job, err) => {
     if (!job?.data?.drawingId) return;
+    const error = err instanceof Error ? err : new Error(String(err));
     const max = job.opts.attempts ?? 1;
     const terminal =
-      err instanceof UnrecoverableError || job.attemptsMade >= max;
+      error instanceof UnrecoverableError || job.attemptsMade >= max;
     if (terminal) {
-      await repo.update(job.data.drawingId, { status: "failed" });
+      await repo.update(job.data.drawingId, {
+        status: "failed",
+        lastError: formatDrawingImageJobErrorForPersistence(error),
+        failedAt: new Date(),
+      });
     }
   });
 

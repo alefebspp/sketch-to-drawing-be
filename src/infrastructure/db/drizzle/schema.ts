@@ -5,6 +5,7 @@ import {
   integer,
   serial,
   pgEnum,
+  timestamp,
 } from "drizzle-orm/pg-core";
 
 export const drawingStatusEnum = pgEnum("drawing_status", [
@@ -36,6 +37,8 @@ export const drawings = pgTable("drawings", {
   title: text("title"),
   description: text("description"),
   status: drawingStatusEnum("status"),
+  lastError: text("last_error"),
+  failedAt: timestamp("failed_at", { withTimezone: true, mode: "date" }),
 });
 export const imagesRelations = relations(images, ({ many }) => ({
   sketches: many(sketches),

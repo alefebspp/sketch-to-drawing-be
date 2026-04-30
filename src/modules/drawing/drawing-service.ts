@@ -119,7 +119,11 @@ export class DrawingService {
     await this.imageService.getByIdOrThrow(imageId);
 
     const previousStatus = drawing.status;
-    await this.repo.update(drawingId, { status: "processing" });
+    await this.repo.update(drawingId, {
+      status: "processing",
+      lastError: null,
+      failedAt: null,
+    });
     try {
       await enqueueDrawingImageGeneration({ drawingId, prompt });
     } catch (e) {
@@ -199,6 +203,8 @@ export class DrawingService {
     await this.repo.update(drawingId, {
       mediaId: generatedImage.id,
       status: "success",
+      lastError: null,
+      failedAt: null,
     });
   }
 }

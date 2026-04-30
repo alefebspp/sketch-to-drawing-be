@@ -53,7 +53,7 @@ sequenceDiagram
 - Manter **dois processos** em produção: API (produtor) e **worker** (consumidor); subir **Redis** antes de ambos.
 - Expor **`status`** em `GET /drawings` e `GET /drawings/:id` para o cliente fazer polling ou futuramente WebSocket/SSE.
 - Documentar variáveis de ambiente no README ou `.env.example` quando existir.
-- Evoluir com: métricas da fila, DLQ, ou campo opcional `lastError` se o produto precisar de diagnóstico na API.
+- Recomenda-se métricas da fila em produção. **Diagnóstico no domínio e retenção de jobs falhos** (`lastError`, `failed_at`, política `removeOnFail` no BullMQ) estão descritos e operacionalizados em [dead-letter-queue-drawing-image-jobs-bullmq.md](dead-letter-queue-drawing-image-jobs-bullmq.md#ops-limites-redis-truncamento-e-ferramentas); a API já expõe `lastError` e `failedAt` para suporte e UI. Para visão de fila no browser, [Bull Board](https://github.com/felixmosh/bull-board) (ou similar) pode apontar à fila `drawing-image-generation`.
 
 ## Files Examined
 

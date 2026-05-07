@@ -15,6 +15,7 @@ import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 import { ImageController } from "./modules/image/image-controller";
 import { DrawingController } from "./modules/drawing/drawing-controller";
+import { registerBullBoard, bullBoardBasePath } from "./infrastructure/queue/register-bull-board";
 import { createReadStream } from "fs";
 import { join, extname } from "path";
 
@@ -131,6 +132,10 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 
 async function start() {
   try {
+    if (process.env.BULL_BOARD_ENABLED === "true") {
+      await registerBullBoard(server);
+      app.log.info(`Bull Board em ${bullBoardBasePath()}`);
+    }
     // ensure swagger routes are ready before listen logs endpoints
     await app.ready();
     await app.listen({ port: PORT, host: HOST });

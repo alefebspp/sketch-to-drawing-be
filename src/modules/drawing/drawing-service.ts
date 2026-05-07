@@ -1,7 +1,7 @@
 import type { Drawing, DrawingCreateInput } from "./drawing";
 import { DrizzleDrawingRepository } from "./repository/drizzle-drawing-repository";
 import { BadRequestError, ConflictError, NotFoundError } from "../../errors";
-import { enqueueDrawingImageGeneration } from "../../infrastructure/queue/drawing-image-generation-queue";
+import { transactionalScheduleDrawingImageGeneration } from "../../infrastructure/outbox/schedule-drawing-image-generation";
 import { SketchService } from "../sketch/sketch-service";
 import { ImageService } from "../image/image-service";
 import {
@@ -88,7 +88,8 @@ export class DrawingService {
   }
 
   /**
-   * Valida o drawing, define `status = processing`, enfileira geração assíncrona (BullMQ).
+   * Valida o drawing, define `status = processing` e grava evento no outbox na mesma transação;
+   * o relay publica o job no BullMQ.
    */
   public async enqueueGenerateImageForDrawing(
     drawingId: number,
@@ -118,18 +119,7 @@ export class DrawingService {
 
     await this.imageService.getByIdOrThrow(imageId);
 
-    const previousStatus = drawing.status;
-    await this.repo.update(drawingId, {
-      status: "processing",
-      lastError: null,
-      failedAt: null,
-    });
-    try {
-      await enqueueDrawingImageGeneration({ drawingId, prompt });
-    } catch (e) {
-      await this.repo.update(drawingId, { status: previousStatus });
-      throw e;
-    }
+    await transactionalScheduleDrawingImageGeneration({ drawingId, prompt });
     return this.getByIdOrThrow(drawingId);
   }
 
@@ -148,7 +138,7 @@ export class DrawingService {
     }
 
     if (drawing.status === "success") {
-      throw new UnrecoverableError("Drawing image generation is already done");
+      return;
     }
 
     const sketchId = Number(drawing.sketchId);

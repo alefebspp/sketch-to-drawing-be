@@ -15,12 +15,33 @@ export function createDrawingImageGenerationWorker(): Worker<DrawingImageGenerat
   const worker = new Worker<DrawingImageGenerationJobData>(
     DRAWING_IMAGE_GENERATION_QUEUE_NAME,
     async (job) => {
+      console.log(
+        JSON.stringify({
+          component: "drawing_image_worker",
+          ts: new Date().toISOString(),
+          action: "job_started",
+          job_id: job.id,
+          drawing_id: job.data.drawingId,
+          event_id: job.data.eventId ?? null,
+        }),
+      );
       await service.processImageGenerationJob(job.data.drawingId, job.data.prompt);
     },
     { connection: createRedisConnection() }
   );
 
   worker.on("failed", async (job, err) => {
+    console.error(
+      JSON.stringify({
+        component: "drawing_image_worker",
+        ts: new Date().toISOString(),
+        action: "job_failed",
+        job_id: job?.id ?? null,
+        drawing_id: job?.data?.drawingId ?? null,
+        event_id: job?.data?.eventId ?? null,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
     if (!job?.data?.drawingId) return;
     const error = err instanceof Error ? err : new Error(String(err));
     const max = job.opts.attempts ?? 1;

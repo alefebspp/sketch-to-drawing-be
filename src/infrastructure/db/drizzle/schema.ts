@@ -6,7 +6,24 @@ import {
   serial,
   pgEnum,
   timestamp,
+  jsonb,
+  uuid,
+  index,
 } from "drizzle-orm/pg-core";
+
+/** Payload gravado no outbox para geração de imagem (relay → BullMQ). */
+export type DrawingImageGenerationOutboxPayload = {
+  drawingId: number;
+  prompt?: string;
+  eventId: string;
+};
+
+export const outboxEventStatusEnum = pgEnum("outbox_event_status", [
+  "pending",
+  "publishing",
+  "published",
+  "failed",
+]);
 
 export const drawingStatusEnum = pgEnum("drawing_status", [
   "processing",
@@ -59,3 +76,44 @@ export const drawingsRelations = relations(drawings, ({ one }) => ({
     references: [sketches.id],
   }),
 }));
+
+export const outboxEvents = pgTable(
+  "outbox_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    aggregateType: text("aggregate_type").notNull(),
+    aggregateId: text("aggregate_id").notNull(),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload")
+      .notNull()
+      .$type<DrawingImageGenerationOutboxPayload>(),
+    status: outboxEventStatusEnum("status").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+    publishedAt: timestamp("published_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    lockedAt: timestamp("locked_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+  },
+  (t) => [
+    index("outbox_events_status_next_attempt_idx").on(
+      t.status,
+      t.nextAttemptAt,
+    ),
+    index("outbox_events_created_at_idx").on(t.createdAt),
+  ],
+);

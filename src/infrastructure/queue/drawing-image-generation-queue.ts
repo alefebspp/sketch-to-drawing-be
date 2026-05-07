@@ -38,6 +38,8 @@ function failedJobsKeepPolicy() {
 export type DrawingImageGenerationJobData = {
   drawingId: number;
   prompt?: string;
+  /** Id do registro no outbox (correlação nos logs). */
+  eventId?: string;
 };
 
 const JOB_NAME = "generateDrawingImage";

@@ -1,22 +1,38 @@
 import "dotenv/config";
+import { startOutboxRelayInBackground } from "./infrastructure/outbox/outbox-relay";
 import { createDrawingImageGenerationWorker } from "./infrastructure/queue/drawing-image-generation-worker";
 
 const worker = createDrawingImageGenerationWorker();
 
-worker.on("completed", (job) => {
-  console.log(`Job ${job.id} completed for drawing ${job.data.drawingId}`);
-});
+let stopOutboxRelay: (() => void) | undefined;
+if (process.env.OUTBOX_RELAY_ENABLED === "true") {
+  stopOutboxRelay = startOutboxRelayInBackground().stop;
+  console.log(
+    JSON.stringify({
+      component: "worker_entry",
+      ts: new Date().toISOString(),
+      outbox_relay: "embedded",
+    })
+  );
+}
 
-worker.on("failed", (job, err) => {
-  console.error(
-    `Job ${job?.id} failed for drawing ${job?.data?.drawingId}:`,
-    err
+worker.on("completed", (job) => {
+  console.log(
+    JSON.stringify({
+      component: "drawing_image_worker",
+      ts: new Date().toISOString(),
+      action: "job_completed",
+      job_id: job.id,
+      drawing_id: job.data.drawingId,
+      event_id: job.data.eventId ?? null,
+    })
   );
 });
 
 console.log("Drawing image generation worker listening");
 
 async function shutdown(): Promise<void> {
+  stopOutboxRelay?.();
   await worker.close();
   process.exit(0);
 }

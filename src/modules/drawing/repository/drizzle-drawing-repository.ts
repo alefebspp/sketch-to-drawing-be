@@ -1,0 +1,91 @@
+import { db } from "../../../infrastructure/db/drizzle";
+import { drawings } from "../../../infrastructure/db/drizzle/schema";
+import { eq } from "drizzle-orm";
+import type { Drawing, DrawingCreateInput, DrawingStatus } from "../drawing";
+import { DrawingRepository } from "./drawing-repository";
+
+function mapRowToDrawing(row: {
+  id: number;
+  mediaId: number | null;
+  sketchId: number;
+  title: string | null;
+  description: string | null;
+  status: DrawingStatus | null;
+  lastError: string | null;
+  failedAt: Date | null;
+}): Drawing {
+  return {
+    id: row.id,
+    mediaId: row.mediaId ?? undefined,
+    sketchId: row.sketchId,
+    title: row.title ?? undefined,
+    description: row.description ?? undefined,
+    status: row.status,
+    lastError: row.lastError,
+    failedAt: row.failedAt,
+  };
+}
+
+export class DrizzleDrawingRepository implements DrawingRepository {
+  public async findById(id: number): Promise<Drawing | null> {
+    const rows = await db
+      .select()
+      .from(drawings)
+      .where(eq(drawings.id, id))
+      .limit(1);
+    if (rows.length === 0) return null;
+    return mapRowToDrawing(rows[0]);
+  }
+
+  public async findAll(): Promise<Drawing[]> {
+    const rows = await db.select().from(drawings);
+    return rows.map(mapRowToDrawing);
+  }
+
+  public async create(data: DrawingCreateInput): Promise<Drawing> {
+    const rows = await db
+      .insert(drawings)
+      .values({
+        mediaId: data.mediaId,
+        sketchId: data.sketchId,
+        title: data.title ?? null,
+        description: data.description ?? null,
+        status: data.status ?? null,
+      })
+      .returning();
+    return mapRowToDrawing(rows[0]);
+  }
+
+  public async update(
+    id: number,
+    data: Partial<Omit<Drawing, "id">>
+  ): Promise<Drawing> {
+    const values: {
+      mediaId?: number;
+      sketchId?: number;
+      title?: string | null;
+      description?: string | null;
+      status?: DrawingStatus | null;
+      lastError?: string | null;
+      failedAt?: Date | null;
+    } = {};
+    if (data.mediaId !== undefined) values.mediaId = data.mediaId;
+    if (data.sketchId !== undefined) values.sketchId = data.sketchId;
+    if (data.title !== undefined) values.title = data.title ?? null;
+    if (data.description !== undefined)
+      values.description = data.description ?? null;
+    if (data.status !== undefined) values.status = data.status;
+    if (data.lastError !== undefined) values.lastError = data.lastError;
+    if (data.failedAt !== undefined) values.failedAt = data.failedAt;
+    const rows = await db
+      .update(drawings)
+      .set(values)
+      .where(eq(drawings.id, id))
+      .returning();
+    return mapRowToDrawing(rows[0]);
+  }
+
+  public async delete(id: number): Promise<void> {
+    await db.delete(drawings).where(eq(drawings.id, id));
+  }
+}
